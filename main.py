@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 import joblib
 import pandas as pd
+import numpy as np
 
 app = FastAPI()
 
@@ -43,3 +44,4 @@ def predict(data: dict):
         "predicted_prob": float(prob),
         "predicted_label": label
     }
+
