@@ -50,20 +50,26 @@ cat_cols = [
     "salesperson_id","team_id","stage_id","stage_sequence"
 ]
 
-@app.get("/")
-def root():
-    return {
-        "status": "API OK - model loaded",
-        "docs": "/docs",
-        "redoc": "/redoc"
-    }
 
 @app.get("/health")
 def health():
+    """Health check endpoint cho Railway"""
     return {
         "status": "healthy", 
         "model_loaded": model is not None,
         "encoder_loaded": encoder is not None
+    }
+
+@app.get("/")
+def root():
+    """Root endpoint với thông tin về API"""
+    return {
+        "status": "API OK - model loaded",
+        "model_loaded": model is not None,
+        "encoder_loaded": encoder is not None,
+        "docs": "/docs",
+        "redoc": "/redoc",
+        "health": "/health"
     }
 
 @app.post("/predict")
