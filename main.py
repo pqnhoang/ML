@@ -1,16 +1,48 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 import joblib
 import pandas as pd
 import numpy as np
 import uvicorn
 import os
+import sys
+import logging
 
+# Setup logging để hiển thị trong Railway logs
+logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# Load model + encoder
-model = joblib.load("lead_win_model_xgb.pkl")
-encoder = joblib.load("encoder.pkl")
+# Global variables để store model và encoder
+model = None
+encoder = None
+
+@app.on_event("startup")
+async def startup_event():
+    """Load model khi app start"""
+    global model, encoder
+    try:
+        logger.info("=" * 50)
+        logger.info("Starting application...")
+        logger.info(f"PORT environment variable: {os.environ.get('PORT', 'NOT SET')}")
+        logger.info(f"Current directory: {os.getcwd()}")
+        logger.info(f"Files in directory: {os.listdir('.')}")
+        logger.info("Loading model files...")
+        
+        model = joblib.load("lead_win_model_xgb.pkl")
+        encoder = joblib.load("encoder.pkl")
+        logger.info("✅ Model and encoder loaded successfully")
+        logger.info("=" * 50)
+    except FileNotFoundError as e:
+        logger.error(f"❌ Error: Model file not found - {e}")
+        logger.error(f"Current directory: {os.getcwd()}")
+        logger.error(f"Files in directory: {os.listdir('.')}")
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error loading model: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        raise
 
 # Cột categorical ban đầu dùng để encode
 cat_cols = [
@@ -20,10 +52,25 @@ cat_cols = [
 
 @app.get("/")
 def root():
-    return {"status": "API OK - model loaded"}
+    return {
+        "status": "API OK - model loaded",
+        "docs": "/docs",
+        "redoc": "/redoc"
+    }
+
+@app.get("/health")
+def health():
+    return {
+        "status": "healthy", 
+        "model_loaded": model is not None,
+        "encoder_loaded": encoder is not None
+    }
 
 @app.post("/predict")
 def predict(data: dict):
+    if model is None or encoder is None:
+        logger.error("Model or encoder not loaded")
+        raise HTTPException(status_code=503, detail="Model not loaded. Please check server logs.")
 
     df = pd.DataFrame([data])
 
@@ -71,3 +118,7 @@ def predict(data: dict):
         "predicted_prob": float(prob),
         "predicted_label": label
     }
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
