@@ -11,7 +11,7 @@ import logging
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
+app = FastAPI(title="ML Prediction API", version="1.0.0")
 
 # Global variables để store model và encoder
 model = None
@@ -32,17 +32,22 @@ async def startup_event():
         model = joblib.load("lead_win_model_xgb.pkl")
         encoder = joblib.load("encoder.pkl")
         logger.info("✅ Model and encoder loaded successfully")
+        logger.info(f"Model type: {type(model)}")
+        logger.info(f"Encoder type: {type(encoder)}")
         logger.info("=" * 50)
+        logger.info("🚀 Application ready to accept requests!")
     except FileNotFoundError as e:
         logger.error(f"❌ Error: Model file not found - {e}")
         logger.error(f"Current directory: {os.getcwd()}")
         logger.error(f"Files in directory: {os.listdir('.')}")
-        raise
+        # Không raise để app vẫn có thể start, nhưng predict sẽ fail
+        logger.warning("⚠️ App will start but predict endpoint will fail")
     except Exception as e:
         logger.error(f"❌ Error loading model: {e}")
         import traceback
         logger.error(traceback.format_exc())
-        raise
+        # Không raise để app vẫn có thể start
+        logger.warning("⚠️ App will start but predict endpoint will fail")
 
 # Cột categorical ban đầu dùng để encode
 cat_cols = [
